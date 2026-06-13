@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consulta de Pacientes — AF Trindade</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f8fafc;
+      min-height: 100vh;
+      padding: 20px 16px;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1e40af, #1d4ed8);
+      border-radius: 16px;
+      padding: 22px 24px;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .header-label { font-size: 11px; opacity: 0.8; letter-spacing: 1px; margin-bottom: 4px; }
+    .header h1   { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .header p    { font-size: 13px; opacity: 0.85; }
+    .stats       { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .stat-chip   { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 5px 11px; font-size: 12px; }
+
+    /* ── Search ── */
+    .search-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .search-label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 8px; }
+    .search-row   { display: flex; gap: 10px; }
+    .search-input {
+      flex: 1; padding: 11px 14px; border: 2px solid #e5e7eb;
+      border-radius: 10px; font-size: 15px; outline: none;
+      transition: border 0.2s;
+    }
+    .search-input:focus { border-color: #3b82f6; }
+    .search-btn {
+      padding: 11px 18px; background: #1d4ed8; color: #fff;
+      border: none; border-radius: 10px; font-size: 15px;
+      cursor: pointer; font-weight: 600;
+    }
+    .search-btn:hover { background: #1e3a8a; }
+    .search-hint { font-size: 12px; color: #9ca3af; margin-top: 7px; }
+
+    /* ── States ── */
+    .empty-state {
+      background: #fff; border-radius: 14px; padding: 32px;
+      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .empty-icon  { font-size: 36px; margin-bottom: 10px; }
+    .empty-title { font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .empty-sub   { font-size: 13px; color: #6b7280; }
+
+    .loading { text-align: center; padding: 32px; color: #6b7280; font-size: 14px; }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .card-name { font-weight: 700; font-size: 16px; color: #111827; }
+    .card-meta { font-size: 13px; color: #6b7280; margin-top: 3px; }
+
+    .badge {
+      border-radius: 20px; padding: 5px 11px;
+      font-weight: 700; font-size: 11px; white-space: nowrap; margin-left: 10px;
+      border: 1px solid transparent;
+    }
+    .badge-ATUALIZADO   { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
+    .badge-VENCIDO      { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+    .badge-SEM_CADASTRO { color: #6b7280; background: #f9fafb; border-color: #e5e7eb; }
+    .badge-SOCIAL       { color: #92400e; background: #fefce8; border-color: #fde68a; }
+
+    .dates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+    .info-cell  { background: #f8fafc; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+    .info-label { font-size: 10px; color: #9ca3af; font-weight: 600; margin-bottom: 2px; text-transform: uppercase; }
+    .info-value { font-size: 13px; color: #374151; }
+    .info-value.date { font-size: 14px; font-weight: 600; }
+    .info-value.social { color: #92400e; font-weight: 600; }
+
+    .insumos-wrap { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .insumo-chip  {
+      background: #dbeafe; color: #1e40af;
+      border-radius: 12px; padding: 3px 9px;
+      font-size: 12px; font-weight: 500; white-space: nowrap;
+    }
+
+    .status-msg {
+      border-radius: 8px; padding: 9px 12px;
+      font-size: 13px; font-weight: 500; margin-top: 4px;
+      border: 1px solid transparent;
+    }
+    .msg-ATUALIZADO   { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
+    .msg-VENCIDO      { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+    .msg-SEM_CADASTRO { color: #6b7280; background: #f9fafb; border-color: #e5e7eb; }
+    .msg-SOCIAL       { color: #92400e; background: #fefce8; border-color: #fde68a; }
+
+    .orient-box {
+      background: #fefce8; border-radius: 8px;
+      padding: 9px 12px; font-size: 13px;
+      color: #92400e; margin-top: 8px;
+      border-left: 3px solid #f59e0b;
+    }
+
+    /* ── Footer ── */
+    .footer { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 24px; padding-bottom: 20px; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-label">ASSISTÊNCIA FARMACÊUTICA · TRINDADE-GO</div>
+    <h1>🔍 Consulta de Pacientes</h1>
+    <p>Fraldas, curativos e materiais médico-hospitalares</p>
+    <div class="stats" id="stats">
+      <div class="stat-chip">👥 Carregando...</div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-box">
+    <label class="search-label">Nome do Paciente</label>
+    <div class="search-row">
+      <input id="searchInput" class="search-input" type="text"
+        placeholder="Digite nome completo ou parcial..." autocomplete="off" />
+      <button class="search-btn" onclick="buscar()">Buscar</button>
+    </div>
+    <p class="search-hint">Mínimo 3 caracteres · Aceita nome parcial · Sem acento</p>
+  </div>
+
+  <!-- Results area -->
+  <div id="results"></div>
+
+  <div class="footer" id="footer"></div>
+
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://kjwfzsouoeolycekyldd.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_stFGzNNqWjbMmp5GJplq1w_M8xc6zd8';
+  const TABLE        = 'pacientes_af';
+
+  // ── Normalizar texto para busca sem acento ──────────────────
+  function norm(str) {
+    return (str || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  // ── Buscar pacientes no Supabase ────────────────────────────
+  async function buscarSupabase(query) {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&limit=6`;
+    const res = await fetch(url, {
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+      }
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    const all = await res.json();
+    const q   = norm(query);
+    return all.filter(p => norm(p.nome).includes(q)).slice(0, 6);
+  }
+
+  // ── Estatísticas ─────────────────────────────────────────────
+  async function carregarStats() {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=status,ultima_entrega`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      const all = await res.json();
+      const a  = all.filter(p => p.status === 'ATUALIZADO').length;
+      const v  = all.filter(p => p.status === 'VENCIDO').length;
+      const s  = all.filter(p => p.ultima_entrega === 'AGUARDANDO_SOCIAL').length;
+      const t  = all.length;
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-chip">✅ <strong>${a}</strong> em dia</div>
+        <div class="stat-chip">⚠️ <strong>${v}</strong> vencidos</div>
+        <div class="stat-chip">🕐 <strong>${s}</strong> aguard. social</div>
+        <div class="stat-chip">👥 <strong>${t}</strong> total</div>
+      `;
+      // Atualiza rodapé com data da última importação
+      if (all[0]?.atualizado_em) {
+        const d = new Date(all[0].atualizado_em);
+        const fmt = d.toLocaleDateString('pt-BR');
+        document.getElementById('footer').textContent =
+          `Base atualizada em ${fmt} · Secretaria Municipal de Saúde de Trindade-GO`;
+      }
+    } catch(e) {
+      document.getElementById('stats').innerHTML = `<div class="stat-chip">⚠️ Erro ao carregar estatísticas</div>`;
+    }
+  }
+
+  // ── Status helpers ───────────────────────────────────────────
+  function getKey(p) {
+    if (p.ultima_entrega === 'AGUARDANDO_SOCIAL') return 'SOCIAL';
+    return p.status === 'ATUALIZADO' ? 'ATUALIZADO'
+         : p.status === 'VENCIDO'    ? 'VENCIDO'
+         : 'SEM_CADASTRO';
+  }
+
+  const BADGE_LABELS = {
+    ATUALIZADO:   '✅ ATUALIZADO',
+    VENCIDO:      '⚠️ VENCIDO',
+    SEM_CADASTRO: '❓ SEM CADASTRO',
+    SOCIAL:       '🕐 AGUARD. SOCIAL',
+  };
+
+  const STATUS_MSGS = {
+    ATUALIZADO:   'Cadastro em dia — entrega autorizada.',
+    VENCIDO:      'Cadastro vencido. Orientar renovação na UBS de referência.',
+    SEM_CADASTRO: 'Paciente não encontrado na base. Orientar cadastro na UBS.',
+    SOCIAL:       'Liberação aguardando Parecer Social. A entrega só será realizada após aprovação da Assistente Social.',
+  };
+
+  // ── Renderizar insumos ───────────────────────────────────────
+  function renderInsumos(insumos) {
+    if (!insumos) return '';
+    let list = insumos;
+    if (typeof list === 'string') {
+      try { list = JSON.parse(list); } catch { return ''; }
+    }
+    if (!list || list.length === 0) return '';
+    const chips = list.map(i => `<span class="insumo-chip">${i.n} <strong>×${i.q}</strong></span>`).join('');
+    return `
+      <div class="info-cell">
+        <div class="info-label">📦 Insumos e Quantidades</div>
+        <div class="insumos-wrap">${chips}</div>
+      </div>`;
+  }
+
+  // ── Renderizar card de paciente ──────────────────────────────
+  function renderCard(p) {
+    const key   = getKey(p);
+    const bLeft = key === 'ATUALIZADO' ? '#16a34a'
+                : key === 'VENCIDO'    ? '#dc2626'
+                : key === 'SOCIAL'     ? '#f59e0b'
+                : '#9ca3af';
+
+    const entregaDisplay = p.ultima_entrega === 'AGUARDANDO_SOCIAL'
+      ? '<span class="info-value social">🕐 Aguard. parecer social</span>'
+      : `<span class="info-value date">${p.ultima_entrega || 'N/A'}</span>`;
+
+    const orientacao = (p.status === 'VENCIDO' && key !== 'SOCIAL')
+      ? `<div class="orient-box"><strong>Orientação:</strong> Comparecer à UBS ${p.ubs || 'de referência'} com RG, CPF, CNS, Cartão Família e Comprovante de Residência (90 dias). Renovação obrigatória a cada 6 meses.</div>`
+      : '';
+
+    return `
+      <div class="card" style="border-left: 5px solid ${bLeft}">
+        <div class="card-head">
+          <div>
+            <div class="card-name">${p.nome}</div>
+            ${p.ubs       ? `<div class="card-meta">📍 UBS: ${p.ubs}</div>` : ''}
+            ${p.protocolo ? `<div class="card-meta">📋 Protocolo: ${p.protocolo}</div>` : ''}
+            ${p.contato   ? `<div class="card-meta">📞 ${p.contato}</div>` : ''}
+          </div>
+          <div class="badge badge-${key}">${BADGE_LABELS[key]}</div>
+        </div>
+
+        <div class="dates-grid">
+          <div class="info-cell">
+            <div class="info-label">Última Atualização</div>
+            <span class="info-value date">${p.ultima_atualizacao || 'N/A'}</span>
+          </div>
+          <div class="info-cell">
+            <div class="info-label">Última Entrega</div>
+            ${entregaDisplay}
+          </div>
+        </div>
+
+        ${p.rota     ? `<div class="info-cell"><div class="info-label">Rota de Entrega</div><div class="info-value">🚚 ${p.rota}</div></div>` : ''}
+        ${p.endereco ? `<div class="info-cell"><div class="info-label">Endereço de Entrega</div><div class="info-value">🏠 ${p.endereco}</div></div>` : ''}
+
+        ${renderInsumos(p.insumos)}
+
+        <div class="status-msg msg-${key}">${STATUS_MSGS[key]}</div>
+        ${orientacao}
+      </div>`;
+  }
+
+  // ── Buscar e exibir ──────────────────────────────────────────
+  async function buscar() {
+    const q = document.getElementById('searchInput').value.trim();
+    const resultsEl = document.getElementById('results');
+
+    if (q.length < 3) {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔎</div>
+          <div class="empty-title">Digite pelo menos 3 letras</div>
+        </div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = `<div class="loading">⏳ Buscando...</div>`;
+
+    try {
+      const patients = await buscarSupabase(q);
+      if (patients.length === 0) {
+        resultsEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🔎</div>
+            <div class="empty-title">Paciente não encontrado</div>
+            <div class="empty-sub">Verifique a grafia ou oriente o paciente a se cadastrar na UBS.</div>
+          </div>`;
+      } else {
+        resultsEl.innerHTML = patients.map(renderCard).join('');
+      }
+    } catch(e) {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">❌</div>
+          <div class="empty-title">Erro de conexão</div>
+          <div class="empty-sub">Verifique sua internet e tente novamente.<br><small>${e.message}</small></div>
+        </div>`;
+    }
+  }
+
+  // Enter para buscar
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') buscar();
+  });
+
+  // Carrega stats ao abrir
+  carregarStats();
+</script>
+</body>
+</html>
