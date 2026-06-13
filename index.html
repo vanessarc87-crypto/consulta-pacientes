@@ -168,9 +168,32 @@
       .replace(/\s+/g, ' ').trim();
   }
 
-  // ── Buscar pacientes no Supabase ────────────────────────────
+  // ── Buscar pacientes no Supabase via ilike (server-side) ────
   async function buscarSupabase(query) {
-    const url = `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&limit=6`;
+    const q = norm(query);
+    // Usa unaccent + ilike do Supabase para busca server-side em toda a tabela
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&nome=ilike.*${encodeURIComponent(q)}*&limit=10`;
+    const res = await fetch(url, {
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+      }
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+
+    // Fallback: se ilike não encontrar (ex: coluna sem suporte a acento no servidor),
+    // faz busca local em todos os registros
+    if (data.length === 0) {
+      return await buscarFallback(q);
+    }
+    return data;
+  }
+
+  // ── Fallback: busca local em toda a tabela ──────────────────
+  async function buscarFallback(q) {
+    const url = `${SUPABASE_URL}/rest/v1/${TABLE}?select=*`;
     const res = await fetch(url, {
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -180,14 +203,13 @@
     });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
     const all = await res.json();
-    const q   = norm(query);
-    return all.filter(p => norm(p.nome).includes(q)).slice(0, 6);
+    return all.filter(p => norm(p.nome).includes(q)).slice(0, 10);
   }
 
   // ── Estatísticas ─────────────────────────────────────────────
   async function carregarStats() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=status,ultima_entrega`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=status,ultima_entrega,atualizado_em`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
       });
       const all = await res.json();
@@ -201,7 +223,6 @@
         <div class="stat-chip">🕐 <strong>${s}</strong> aguard. social</div>
         <div class="stat-chip">👥 <strong>${t}</strong> total</div>
       `;
-      // Atualiza rodapé com data da última importação
       if (all[0]?.atualizado_em) {
         const d = new Date(all[0].atualizado_em);
         const fmt = d.toLocaleDateString('pt-BR');
